@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voucher Entri Transaksi Kas Keluar</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col justify-between">
+
+    <header class="bg-slate-900 text-white shadow-md py-4 px-6">
+        <div class="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
+            <div>
+                <h1 class="text-xl font-bold tracking-wide flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Sistem Akuntansi Keuangan
+                </h1>
+                <p class="text-xs text-slate-400">Modul Jurnal & Cash Disbursement Voucher (Supabase Connected)</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="text-xs bg-slate-800 text-emerald-400 px-3 py-1.5 rounded-md border border-slate-700 flex items-center gap-1.5">
+                    <span id="supabase-status-dot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span id="supabase-status-text">Menghubungkan Supabase...</span>
+                </div>
+                <div class="text-xs bg-slate-800 text-blue-300 px-3 py-1.5 rounded-md border border-slate-700">
+                    Status: <span id="header-status-badge" class="font-semibold text-amber-400">Draft Baru</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <div class="max-w-6xl w-full mx-auto px-4 sm:px-6 mt-4">
+        <div class="flex border-b border-slate-300 space-x-6">
+            <button type="button" id="tab-form" class="pb-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 transition flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Entri Voucher Baru
+            </button>
+            <button type="button" id="tab-history" class="pb-3 text-sm font-semibold text-slate-500 hover:text-slate-800 transition flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                Riwayat Voucher (<span id="history-count">0</span>)
+            </button>
+        </div>
+    </div>
+
+    <main class="max-w-6xl w-full mx-auto p-4 sm:p-6 my-2 flex-grow">
+        
+        <!-- VIEW 1: FORM ENTRY -->
+        <div id="view-form" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            
+            <!-- Form Title Banner -->
+            <div class="bg-slate-800 text-white px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div>
+                    <h2 class="text-lg font-semibold">Voucher Kas Keluar (Cash Disbursement)</h2>
+                    <p class="text-xs text-slate-300">Catat transaksi pengeluaran kas dengan jurnal ganda yang seimbang.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="btn-open-account-modal" class="inline-flex items-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-600 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        + Tambah Akun Manual
+                    </button>
+                    <span class="text-xs text-slate-300 font-mono" id="current-timestamp"></span>
+                </div>
+            </div>
+
+            <!-- Voucher Header Form Fields -->
+            <form id="voucher-form" class="p-6 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Nomor Voucher -->
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Nomor Voucher <span class="text-red-500">*</span></label>
+                        <input type="text" id="voucher-no" required placeholder="Contoh: VKK-2026-001" 
+                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition">
+                    </div>
+                    <!-- Tanggal Transaksi -->
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Tanggal Transaksi <span class="text-red-500">*</span></label>
+                        <input type="date" id="voucher-date" required 
+                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition">
+                    </div>
+                    <!-- Penerima -->
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Penerima / Dibayarkan Kepada <span class="text-red-500">*</span></label>
+                        <input type="text" id="voucher-payee" required placeholder="Nama Vendor / Karyawan" 
+                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition">
+                    </div>
+                    <!-- Keterangan / Deskripsi -->
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Keterangan / Deskripsi</label>
+                        <input type="text" id="voucher-desc" placeholder="Catatan transaksi..." 
+                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition">
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-200">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                        <div>
+                            <h3 class="text-md font-bold text-slate-800">Rincian Jurnal Akuntansi</h3>
+                            <p class="text-xs text-slate-500">Pastikan total debit dan kredit seimbang sebelum menyimpan voucher.</p>
+                        </div>
+                        <button type="button" id="btn-add-row" class="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-sm transition active:scale-95">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            Tambah Baris
+                        </button>
+                    </div>
+
+                    <!-- Responsive Table Container -->
+                    <div class="overflow-x-auto rounded-lg border border-slate-200">
+                        <table class="w-full text-left border-collapse" id="journal-table">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-700 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
+                                    <th class="py-3 px-4 w-5/12">Nama Akun <span class="text-red-500">*</span></th>
+                                    <th class="py-3 px-4 w-3/12">Debit (Rp)</th>
+                                    <th class="py-3 px-4 w-3/12">Kredit (Rp)</th>
+                                    <th class="py-3 px-4 w-1/12 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="journal-tbody" class="divide-y divide-slate-200 text-sm">
+                                <!-- Dynamic rows injected via JS -->
+                            </tbody>
+                            <tfoot>
+                                <tr class="bg-slate-50 font-semibold text-slate-900 border-t border-slate-300">
+                                    <td class="py-3 px-4 text-right uppercase tracking-wider text-xs">Total:</td>
+                                    <td class="py-3 px-4 font-mono text-blue-900" id="total-debit">Rp 0</td>
+                                    <td class="py-3 px-4 font-mono text-blue-900" id="total-credit">Rp 0</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs uppercase font-bold tracking-wider text-slate-500">Status Validasi:</span>
+                            <div id="balance-badge" class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-red-100 text-red-700 border border-red-300">
+                                NOT BALANCED
+                            </div>
+                        </div>
+                        <p id="balance-error-msg" class="text-xs text-red-600 font-medium">
+                            Selisih: Rp 0 (Total Debit dan Kredit belum sama atau bernilai 0)
+                        </p>
+                        <p id="validation-notice" class="text-xs text-slate-500 italic">
+                            * Lengkapi seluruh field header, pastikan minimal 1 baris jurnal terisi valid, dan nilai seimbang.
+                        </p>
+                    </div>
+
+                    <div class="flex items-center gap-3 w-full md:w-auto">
+                        <button type="reset" id="btn-reset" class="w-full md:w-auto px-4 py-2.5 text-xs font-semibold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition">
+                            Reset Form
+                        </button>
+                        <button type="submit" id="btn-submit" disabled class="w-full md:w-auto px-6 py-2.5 text-xs font-semibold text-white bg-blue-600 rounded-lg shadow-sm opacity-55 cursor-not-allowed transition">
+                            Simpan Voucher
+                        </button>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+
+        <!-- VIEW 2: HISTORY LIST -->
+        <div id="view-history" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hidden">
+            <div class="bg-slate-800 text-white px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                    <h2 class="text-lg font-semibold">Riwayat Voucher Tersimpan</h2>
+                    <p class="text-xs text-slate-300">Daftar seluruh transaksi kas keluar yang tersimpan di database Supabase.</p>
+                </div>
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <input type="text" id="history-search" placeholder="Cari nomor/penerima..." class="px-3 py-1.5 text-xs rounded-lg text-slate-800 bg-white border border-slate-300 focus:outline-none w-full sm:w-48">
+                    <button type="button" id="btn-refresh-history" class="p-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition" title="Muat Ulang Riwayat">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-6">
+                <div class="overflow-x-auto rounded-lg border border-slate-200">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-700 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
+                                <th class="py-3 px-4">No. Voucher</th>
+                                <th class="py-3 px-4">Tanggal</th>
+                                <th class="py-3 px-4">Penerima</th>
+                                <th class="py-3 px-4">Keterangan</th>
+                                <th class="py-3 px-4 text-right">Total Nominal</th>
+                                <th class="py-3 px-4 text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-tbody" class="divide-y divide-slate-200 text-sm">
+                            <tr>
+                                <td colspan="6" class="py-8 text-center text-slate-400 text-xs">Memuat data dari Supabase...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal: Tambah Akun Manual -->
+    <div id="account-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-xl animate-in fade-in zoom-in duration-200">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-3">
+                <h3 class="text-md font-bold text-slate-900">Tambah Akun Baru</h3>
+                <button type="button" id="btn-close-account-modal" class="text-slate-400 hover:text-slate-600 font-bold">&times;</button>
+            </div>
+            <form id="account-form" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Kode Akun <span class="text-red-500">*</span></label>
+                    <input type="text" id="new-acc-code" required placeholder="Contoh: 5150" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Nama Akun <span class="text-red-500">*</span></label>
+                    <input type="text" id="new-acc-name" required placeholder="Contoh: 5150 - Beban Pemeliharaan" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+                </div>
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" id="btn-cancel-account" class="px-3 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">Batal</button>
+                    <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700">Simpan Akun</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Detail Voucher / Success -->
+    <div id="success-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl animate-in fade-in zoom-in duration-200">
+            <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold">
+                ✓
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 text-center">Voucher Berhasil Disimpan!</h3>
+            <div id="success-modal-content" class="text-xs text-slate-600 bg-slate-50 p-4 rounded-lg border border-slate-200 max-h-60 overflow-y-auto space-y-2">
+                <!-- Detail voucher content -->
+            </div>
+            <div class="flex gap-2">
+                <button type="button" id="btn-print-voucher" class="w-1/2 bg-slate-800 text-white py-2 rounded-lg text-xs font-semibold hover:bg-slate-700 transition">
+                    Cetak / Print
+                </button>
+                <button type="button" id="btn-close-modal" class="w-1/2 bg-blue-600 text-white py-2 rounded-lg text-xs font-semibold hover:bg-blue-700 transition">
+                    Tutup & Buat Baru
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supabase JS Client CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Supabase Configuration
+        const SUPABASE_URL = 'https://hzsshkzzrrfqwdtacncu.supabase.co';
+        const SUPABASE_PUBLISH_KEY = 'sb_publishable_fG0hEbp1s9fFibXQJkQFyA_KR8sTDNl';
+
+        let supabaseClient = null;
+        let isSupabaseConnected = false;
+
+        // Default Account Options with fallback
+        let accountOptions = [
+            { code: "1110", name: "1110 - Kas Kecil / Cash" },
+            { code: "1120", name: "1120 - Kas di Bank" },
+            { code: "1130", name: "1130 - Piutang Usaha" },
+            { code: "1200", name: "1200 - Persediaan Barang Dagang" },
+            { code: "2110", name: "2110 - Hutang Usaha" },
+            { code: "5110", name: "5110 - Beban Gaji & Upah" },
+            { code: "5120", name: "5120 - Beban Iklan & Promosi" },
+            { code: "5130", name: "5130 - Beban Sewa Kantor" },
+            { code: "5140", name: "5140 - Beban Utilitas (Listrik/Air/Telp)" },
+            { code: "5190", name: "5190 - Beban Operasional Lainnya" }
+        ];
+
+        let rowCounter = 0;
+        let cachedVouchers = [];
+
+        // Initialize Supabase Connection
+        function initSupabase() {
+            try {
+                if (window.supabase) {
+                    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISH_KEY);
+                    testSupabaseConnection();
+                } else {
+                    throw new Error("Supabase library not loaded");
+                }
+            } catch (err) {
+                console.error("Supabase Init Error:", err);
+                setConnectionStatus(false, "Gagal Inisialisasi");
+            }
+        }
+
+        async function testSupabaseConnection() {
+            try {
+                const { data: accData, error: accError } = await supabaseClient.from('chart_of_accounts').select('*');
+                if (!accError && accData && accData.length > 0) {
+                    accountOptions = accData.map(acc => {
+                        const code = acc.account_code || acc.code || '';
+                        const name = acc.account_name || acc.name || code;
+                        return { code: code, name: `${code} - ${name}` };
+                    });
+                    updateAllDropdowns();
+                } else {
+                    console.log("Using default account options (chart_of_accounts empty or missing)");
+                }
+
+                const { data, error } = await supabaseClient.from('journal_headers').select('id').limit(1);
+                if (error) {
+                    console.warn("Table journal_headers check:", error.message);
+                    setConnectionStatus(true, "Terhubung (Periksa tabel journal_headers/lines)");
+                } else {
+                    setConnectionStatus(true, "Terhubung ke Supabase");
+                    fetchHistoryFromSupabase();
+                }
+            } catch (err) {
+                console.error("Connection check error:", err);
+                setConnectionStatus(false, "Koneksi Bermasalah");
+            }
+        }
+
+        function setConnectionStatus(connected, text) {
+            isSupabaseConnected = connected;
+            const dot = document.getElementById('supabase-status-dot');
+            const label = document.getElementById('supabase-status-text');
+            label.innerText = text;
+            if (connected) {
+                dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+            } else {
+                dot.className = 'w-2 h-2 rounded-full bg-red-500';
+            }
+        }
+
+        // Utility: Format Rupiah
+        function formatRupiah(number) {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(number);
+        }
+
+        function parseNumeric(value) {
+            if (!value) return 0;
+            const cleaned = value.toString().replace(/[^0-9]/g, '');
+            return cleaned === '' ? 0 : parseFloat(cleaned);
+        }
+
+        // Refresh all dropdown options in existing rows
+        function updateAllDropdowns() {
+            const selects = document.querySelectorAll('.account-select');
+            selects.forEach(sel => {
+                const currentVal = sel.value;
+                let optionsHtml = '<option value="">-- Pilih Akun --</option>';
+                accountOptions.forEach(acc => {
+                    const selected = (acc.name === currentVal) ? 'selected' : '';
+                    optionsHtml += `<option value="${acc.name}" ${selected}>${acc.name}</option>`;
+                });
+                sel.innerHTML = optionsHtml;
+            });
+        }
+
+        function addJournalRow(accountVal = '', debitVal = 0, creditVal = 0) {
+            rowCounter++;
+            const tbody = document.getElementById('journal-tbody');
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-50/80 transition-colors journal-row';
+            tr.dataset.rowId = rowCounter;
+
+            let optionsHtml = '<option value="">-- Pilih Akun --</option>';
+            accountOptions.forEach(acc => {
+                const selected = (acc.name === accountVal) ? 'selected' : '';
+                optionsHtml += `<option value="${acc.name}" ${selected}>${acc.name}</option>`;
+            });
+
+            tr.innerHTML = `
+                <td class="py-3 px-4">
+                    <select class="account-select w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white" required>
+                        ${optionsHtml}
+                    </select>
+                </td>
+                <td class="py-3 px-4">
+                    <input type="text" value="${debitVal ? debitVal.toLocaleString('id-ID') : ''}" placeholder="0" class="debit-input w-full px-3 py-2 text-xs font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-right">
+                </td>
+                <td class="py-3 px-4">
+                    <input type="text" value="${creditVal ? creditVal.toLocaleString('id-ID') : ''}" placeholder="0" class="credit-input w-full px-3 py-2 text-xs font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-right">
+                </td>
+                <td class="py-3 px-4 text-center">
+                    <button type="button" class="btn-delete-row p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Hapus Baris">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                </td>
+            `;
+
+            tbody.appendChild(tr);
+
+            const debitInput = tr.querySelector('.debit-input');
+            const creditInput = tr.querySelector('.credit-input');
+            const deleteBtn = tr.querySelector('.btn-delete-row');
+            const accountSelect = tr.querySelector('.account-select');
+
+            debitInput.addEventListener('input', function(e) {
+                let raw = parseNumeric(e.target.value);
+                e.target.value = raw > 0 ? raw.toLocaleString('id-ID') : '';
+                calculateTotalsAndValidate();
+            });
+
+            creditInput.addEventListener('input', function(e) {
+                let raw = parseNumeric(e.target.value);
+                e.target.value = raw > 0 ? raw.toLocaleString('id-ID') : '';
+                calculateTotalsAndValidate();
+            });
+
+            accountSelect.addEventListener('change', calculateTotalsAndValidate);
+            deleteBtn.addEventListener('click', function() {
+                tr.remove();
+                calculateTotalsAndValidate();
+            });
+
+            calculateTotalsAndValidate();
+        }
+
+        function calculateTotalsAndValidate() {
+            const rows = document.querySelectorAll('.journal-row');
+            let totalDebit = 0;
+            let totalCredit = 0;
+            let hasDualEntryError = false;
+            let rowCount = rows.length;
+
+            rows.forEach(tr => {
+                const debitVal = parseNumeric(tr.querySelector('.debit-input').value);
+                const creditVal = parseNumeric(tr.querySelector('.credit-input').value);
+
+                if (debitVal > 0 && creditVal > 0) {
+                    hasDualEntryError = true;
+                }
+
+                totalDebit += debitVal;
+                totalCredit += creditVal;
+            });
+
+            document.getElementById('total-debit').innerText = formatRupiah(totalDebit);
+            document.getElementById('total-credit').innerText = formatRupiah(totalCredit);
+
+            const voucherNo = document.getElementById('voucher-no').value.trim();
+            const voucherDate = document.getElementById('voucher-date').value.trim();
+            const voucherPayee = document.getElementById('voucher-payee').value.trim();
+
+            const isHeaderComplete = voucherNo !== '' && voucherDate !== '' && voucherPayee !== '';
+            const isBalanced = (totalDebit === totalCredit) && (totalDebit > 0);
+            const diff = Math.abs(totalDebit - totalCredit);
+
+            const badge = document.getElementById('balance-badge');
+            const errorMsg = document.getElementById('balance-error-msg');
+            const submitBtn = document.getElementById('btn-submit');
+            const validationNotice = document.getElementById('validation-notice');
+
+            if (isBalanced && !hasDualEntryError && rowCount > 0) {
+                badge.className = 'px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-emerald-100 text-emerald-700 border border-emerald-300';
+                badge.innerText = 'BALANCED';
+                errorMsg.innerText = 'Total Debit dan Kredit seimbang.';
+                errorMsg.className = 'text-xs text-emerald-600 font-medium';
+            } else {
+                badge.className = 'px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-red-100 text-red-700 border border-red-300';
+                badge.innerText = 'NOT BALANCED';
+                if (totalDebit === 0 && totalCredit === 0) {
+                    errorMsg.innerText = 'Selisih: Rp 0 (Total nilai jurnal masih 0)';
+                } else {
+                    errorMsg.innerText = `Selisih: ${formatRupiah(diff)} (Total Debit dan Kredit belum seimbang)`;
+                }
+                errorMsg.className = 'text-xs text-red-600 font-medium';
+            }
+
+            let canSubmit = true;
+            let failureReason = [];
+
+            if (!isHeaderComplete) { canSubmit = false; failureReason.push('Lengkapi Header'); }
+            if (rowCount === 0) { canSubmit = false; failureReason.push('Minimal 1 baris'); }
+            if (hasDualEntryError) { canSubmit = false; failureReason.push('Debit & Kredit bersamaan'); }
+            if (!isBalanced) { canSubmit = false; failureReason.push('Belum Balanced'); }
+
+            if (canSubmit) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-55', 'cursor-not-allowed');
+                submitBtn.classList.add('hover:bg-blue-700', 'cursor-pointer', 'active:scale-95');
+                validationNotice.innerText = '✓ Siap disimpan ke Supabase.';
+                validationNotice.className = 'text-xs text-emerald-600 font-semibold';
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.classList.add('opacity-55', 'cursor-not-allowed');
+                submitBtn.classList.remove('hover:bg-blue-700', 'cursor-pointer', 'active:scale-95');
+                validationNotice.innerText = '* Syarat: ' + failureReason.join(' | ');
+                validationNotice.className = 'text-xs text-slate-500 italic';
+            }
+        }
+
+        // Fetch History from journal_headers & journal_lines
+        async function fetchHistoryFromSupabase() {
+            if (!supabaseClient) return;
+            try {
+                const { data: headers, error: hError } = await supabaseClient
+                    .from('journal_headers')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (hError) {
+                    console.warn("Fetch headers error:", hError.message);
+                    return;
+                }
+
+                if (!headers || headers.length === 0) {
+                    cachedVouchers = [];
+                    document.getElementById('history-count').innerText = 0;
+                    renderHistoryTable([]);
+                    return;
+                }
+
+                // Fetch lines for these headers
+                const { data: lines, error: lError } = await supabaseClient
+                    .from('journal_lines')
+                    .select('*');
+
+                if (lError) {
+                    console.warn("Fetch lines error:", lError.message);
+                }
+
+                cachedVouchers = headers.map(h => {
+                    const hLines = (lines || []).filter(l => l.header_id === h.id);
+                    let totalAmt = 0;
+                    hLines.forEach(l => {
+                        if (l.debit > 0) totalAmt += Number(l.debit);
+                    });
+
+                    // Parse description format "Penerima: X | Desc"
+                    let payeeName = 'Umum';
+                    let descText = h.description || '';
+                    if (descText.startsWith('Penerima:')) {
+                        const parts = descText.split(' | ');
+                        payeeName = parts[0].replace('Penerima:', '').trim();
+                        descText = parts.slice(1).join(' | ');
+                    }
+
+                    return {
+                        id: h.id,
+                        voucher_no: h.reference_number || 'VKK-' + h.id,
+                        voucher_date: h.transaction_date,
+                        payee: payeeName,
+                        description: descText,
+                        total_amount: totalAmt,
+                        journal_items: hLines.map(l => ({
+                            accountCode: l.account_id,
+                            account: l.account_id,
+                            debit: Number(l.debit || 0),
+                            credit: Number(l.credit || 0)
+                        }))
+                    };
+                });
+
+                document.getElementById('history-count').innerText = cachedVouchers.length;
+                renderHistoryTable(cachedVouchers);
+            } catch (err) {
+                console.error("Fetch history exception:", err);
+            }
+        }
+
+        function renderHistoryTable(vouchers) {
+            const tbody = document.getElementById('history-tbody');
+            if (!vouchers || vouchers.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400 text-xs">Belum ada riwayat jurnal tersimpan.</td></tr>`;
+                return;
+            }
+
+            let html = '';
+            vouchers.forEach(v => {
+                html += `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="py-3 px-4 font-mono font-semibold text-slate-900">${v.voucher_no}</td>
+                        <td class="py-3 px-4 text-slate-600">${v.voucher_date}</td>
+                        <td class="py-3 px-4 font-medium text-slate-800">${v.payee}</td>
+                        <td class="py-3 px-4 text-slate-500 truncate max-w-xs">${v.description || '-'}</td>
+                        <td class="py-3 px-4 text-right font-mono text-blue-900 font-semibold">${formatRupiah(v.total_amount)}</td>
+                        <td class="py-3 px-4 text-center">
+                            <button type="button" onclick="viewVoucherDetail('${v.id}')" class="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-600 rounded text-xs font-medium transition">Detail</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        window.viewVoucherDetail = function(id) {
+            const v = cachedVouchers.find(item => item.id == id || item.id === id);
+            if (!v) return;
+            viewVoucherDetailModal(v);
+        };
+
+        function viewVoucherDetailModal(v) {
+            let journalRowsHtml = '';
+            (v.journal_items || []).forEach(j => {
+                journalRowsHtml += `
+                    <tr class="border-b border-slate-100">
+                        <td class="py-2 px-2 font-mono">${j.accountCode || j.account}</td>
+                        <td class="py-2 px-2 text-right font-mono">${j.debit > 0 ? formatRupiah(j.debit) : '-'}</td>
+                        <td class="py-2 px-2 text-right font-mono">${j.credit > 0 ? formatRupiah(j.credit) : '-'}</td>
+                    </tr>
+                `;
+            });
+
+            const detailHtml = `
+                <div class="space-y-1 text-left">
+                    <p><strong>No. Voucher:</strong> ${v.voucher_no}</p>
+                    <p><strong>Tanggal:</strong> ${v.voucher_date}</p>
+                    <p><strong>Penerima:</strong> ${v.payee}</p>
+                    <p><strong>Keterangan:</strong> ${v.description || '-'}</p>
+                    <div class="pt-2">
+                        <p class="font-bold text-xs uppercase text-slate-500 mb-1">Rincian Jurnal:</p>
+                        <table class="w-full text-xs border border-slate-200">
+                            <thead><tr class="bg-slate-100"><th class="p-2">Kode Akun</th><th class="p-2 text-right">Debit</th><th class="p-2 text-right">Kredit</th></tr></thead>
+                            <tbody>${journalRowsHtml}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('success-modal-content').innerHTML = detailHtml;
+            document.getElementById('success-modal').classList.remove('hidden');
+        }
+
+        // Submit Form Handler - Memasukkan ke journal_headers & journal_lines
+        document.getElementById('voucher-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const vNo = document.getElementById('voucher-no').value.trim();
+            const vDate = document.getElementById('voucher-date').value.trim();
+            const vPayee = document.getElementById('voucher-payee').value.trim();
+            const vDesc = document.getElementById('voucher-desc').value.trim();
+
+            const rows = document.querySelectorAll('.journal-row');
+            let journalItems = [];
+            let totalDeb = 0;
+
+            rows.forEach(tr => {
+                const accountString = tr.querySelector('.account-select').value; // Contoh: "1110 - Kas Kecil / Cash"
+                const debit = parseNumeric(tr.querySelector('.debit-input').value);
+                const credit = parseNumeric(tr.querySelector('.credit-input').value);
+                
+                if (debit > 0) totalDeb += debit;
+                
+                // Ekstrak kode akun (4 digit pertama sebelum tanda minus)
+                const accountCode = accountString ? accountString.split(' - ')[0] : '';
+                
+                journalItems.push({ accountCode, account: accountString, debit, credit });
+            });
+
+            try {
+                const { data: headerData, error: headerError } = await supabaseClient
+                    .from('journal_headers')
+                    .insert([{
+                        transaction_date: vDate,
+                        reference_number: vNo,
+                        description: `Penerima: ${vPayee} | ${vDesc}`,
+                        posting_status: 'POSTED'
+                    }])
+                    .select();
+
+                if (headerError) {
+                    alert("Gagal menyimpan header: " + headerError.message);
+                    return;
+                }
+
+                const headerId = headerData[0].id;
+
+                const linesPayload = journalItems.map(item => ({
+                    header_id: headerId,
+                    account_id: item.accountCode,
+                    debit: item.debit,
+                    credit: item.credit
+                }));
+
+                const { error: linesError } = await supabaseClient
+                    .from('journal_lines')
+                    .insert(linesPayload);
+
+                if (linesError) {
+                    alert("Gagal menyimpan rincian jurnal: " + linesError.message);
+                    return;
+                }
+
+                const payload = {
+                    id: headerId,
+                    voucher_no: vNo,
+                    voucher_date: vDate,
+                    payee: vPayee,
+                    description: vDesc,
+                    total_amount: totalDeb,
+                    journal_items: journalItems
+                };
+
+                fetchHistoryFromSupabase();
+                viewVoucherDetailModal(payload);
+
+            } catch (err) {
+                console.error("Error saving to Supabase:", err);
+                alert("Terjadi kesalahan koneksi saat menyimpan.");
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initSupabase();
+
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('voucher-date').value = today;
+
+            const now = new Date();
+            document.getElementById('current-timestamp').innerText = now.toLocaleDateString('id-ID', { dateStyle: 'full' });
+
+            addJournalRow('5110 - Beban Gaji & Upah', 1500000, 0);
+            addJournalRow('1110 - Kas Kecil / Cash', 0, 1500000);
+
+            // Tabs Navigation
+            const tabForm = document.getElementById('tab-form');
+            const tabHistory = document.getElementById('tab-history');
+            const viewForm = document.getElementById('view-form');
+            const viewHistory = document.getElementById('view-history');
+
+            tabForm.addEventListener('click', () => {
+                tabForm.className = 'pb-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 transition flex items-center gap-2';
+                tabHistory.className = 'pb-3 text-sm font-semibold text-slate-500 hover:text-slate-800 transition flex items-center gap-2';
+                viewForm.classList.remove('hidden');
+                viewHistory.classList.add('hidden');
+            });
+
+            tabHistory.addEventListener('click', () => {
+                tabHistory.className = 'pb-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 transition flex items-center gap-2';
+                tabForm.className = 'pb-3 text-sm font-semibold text-slate-500 hover:text-slate-800 transition flex items-center gap-2';
+                viewHistory.classList.remove('hidden');
+                viewForm.classList.add('hidden');
+                fetchHistoryFromSupabase();
+            });
+
+            document.getElementById('btn-add-row').addEventListener('click', () => addJournalRow());
+
+            ['voucher-no', 'voucher-date', 'voucher-payee', 'voucher-desc'].forEach(id => {
+                document.getElementById(id).addEventListener('input', calculateTotalsAndValidate);
+            });
+
+            document.getElementById('voucher-form').addEventListener('reset', () => {
+                setTimeout(() => {
+                    document.getElementById('voucher-date').value = today;
+                    document.getElementById('journal-tbody').innerHTML = '';
+                    addJournalRow();
+                    calculateTotalsAndValidate();
+                }, 10);
+            });
+
+            // Manual Account Modal Handlers
+            const accountModal = document.getElementById('account-modal');
+            document.getElementById('btn-open-account-modal').addEventListener('click', () => {
+                accountModal.classList.remove('hidden');
+            });
+            document.getElementById('btn-close-account-modal').addEventListener('click', () => {
+                accountModal.classList.add('hidden');
+            });
+            document.getElementById('btn-cancel-account').addEventListener('click', () => {
+                accountModal.classList.add('hidden');
+            });
+
+            document.getElementById('account-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const code = document.getElementById('new-acc-code').value.trim();
+                const name = document.getElementById('new-acc-name').value.trim();
+
+                if (code && name) {
+                    const exists = accountOptions.some(acc => acc.code === code || acc.name.includes(code));
+                    if (exists) {
+                        alert("Kode akun sudah terdaftar dalam pilihan.");
+                        return;
+                    }
+
+                    const newAccountObj = { code, name: `${code} - ${name}` };
+                    
+                    // Coba simpan ke tabel chart_of_accounts Supabase jika ada
+                    try {
+                        await supabaseClient.from('chart_of_accounts').insert([{
+                            account_code: code,
+                            account_name: name
+                        }]);
+                    } catch (err) {
+                        console.log("Could not save to chart_of_accounts table:", err);
+                    }
+
+                    accountOptions.push(newAccountObj);
+                    updateAllDropdowns();
+                    document.getElementById('account-form').reset();
+                    accountModal.classList.add('hidden');
+                }
+            });
+
+            document.getElementById('btn-close-modal').addEventListener('click', () => {
+                document.getElementById('success-modal').classList.add('hidden');
+                document.getElementById('voucher-form').reset();
+            });
+
+            document.getElementById('btn-print-voucher').addEventListener('click', () => {
+                window.print();
+            });
+
+            document.getElementById('history-search').addEventListener('input', (e) => {
+                const keyword = e.target.value.toLowerCase();
+                const filtered = cachedVouchers.filter(v => 
+                    v.voucher_no.toLowerCase().includes(keyword) || 
+                    v.payee.toLowerCase().includes(keyword) ||
+                    (v.description && v.description.toLowerCase().includes(keyword))
+                );
+                renderHistoryTable(filtered);
+            });
+
+            document.getElementById('btn-refresh-history').addEventListener('click', () => {
+                fetchHistoryFromSupabase();
+            });
+        });
+    </script>
+</body>
+</html>
